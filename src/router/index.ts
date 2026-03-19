@@ -57,13 +57,12 @@ router.beforeEach((to) => {
   const auth = useAuthStore()
   const clientAuth = useClientAuthStore()
 
-  // Client routes: redirect to client login if not authenticated as client
+  // Client routes
   if (to.meta.clientOnly && !clientAuth.isLoggedIn) return '/client/login'
   if (to.path === '/client/login' && clientAuth.isLoggedIn) return '/client/dashboard'
+  if (to.meta.clientOnly || to.meta.clientPublic) return
 
-  // Employee routes: skip for client-public routes
-  if (to.meta.clientPublic) return
-
+  // Employee routes
   if (!to.meta.public && !auth.isLoggedIn) return '/login'
   if (to.path === '/login' && auth.isLoggedIn) return '/employees'
 })
