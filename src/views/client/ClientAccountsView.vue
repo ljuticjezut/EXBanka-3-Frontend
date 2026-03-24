@@ -328,6 +328,25 @@ onMounted(() => {
             <span style="color:#64748b">Tip</span>
             <span style="color:#0f172a">{{ tipLabel(detailsAccount.tip) }} — {{ vrstaLabel(detailsAccount.vrsta) }}</span>
           </div>
+          <template v-if="detailsAccount.vrsta === 'poslovni' && detailsAccount.firma">
+            <div style="padding:10px 0 4px;font-size:12px;font-weight:600;color:#94a3b8;letter-spacing:0.05em;text-transform:uppercase">Podaci o firmi</div>
+            <div style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid #f1f5f9;font-size:14px">
+              <span style="color:#64748b">Naziv firme</span>
+              <span style="font-weight:500;color:#0f172a">{{ detailsAccount.firma.naziv }}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid #f1f5f9;font-size:14px">
+              <span style="color:#64748b">Matični broj</span>
+              <span style="color:#0f172a">{{ detailsAccount.firma.maticniBroj }}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid #f1f5f9;font-size:14px">
+              <span style="color:#64748b">PIB</span>
+              <span style="color:#0f172a">{{ detailsAccount.firma.pib }}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid #f1f5f9;font-size:14px">
+              <span style="color:#64748b">Adresa</span>
+              <span style="color:#0f172a">{{ detailsAccount.firma.adresa }}</span>
+            </div>
+          </template>
           <div style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid #f1f5f9;font-size:14px">
             <span style="color:#64748b">Raspoloživo stanje</span>
             <span style="font-weight:600;color:#16a34a">{{ formatAmount(detailsAccount.raspolozivoStanje, detailsAccount.currencyKod) }}</span>

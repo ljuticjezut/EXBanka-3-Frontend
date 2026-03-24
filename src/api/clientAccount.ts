@@ -1,5 +1,14 @@
 import clientApi from './clientAuth'
 
+export interface FirmaItem {
+  id: number
+  naziv: string
+  maticniBroj: string
+  pib: string
+  adresa: string
+  sifraDelatnostiId: number
+}
+
 export interface ClientAccountItem {
   id: string
   brojRacuna: string
@@ -17,6 +26,7 @@ export interface ClientAccountItem {
   mesecnaPotrosnja: number
   datumIsteka: string | null
   odrzavanjeRacuna: number
+  firma: FirmaItem | null
   naziv: string
   status: string
 }
