@@ -33,6 +33,16 @@ function logout() {
         style="color:#93c5fd;font-size:14px;text-decoration:none"
         active-class="navbar-nav-active"
       >Accounts</RouterLink>
+      <RouterLink
+        to="/loans/requests"
+        style="color:#93c5fd;font-size:14px;text-decoration:none"
+        active-class="navbar-nav-active"
+      >Zahtevi</RouterLink>
+      <RouterLink
+        to="/loans"
+        style="color:#93c5fd;font-size:14px;text-decoration:none"
+        active-class="navbar-nav-active"
+      >Krediti</RouterLink>
     </div>
     <div class="navbar-right">
       <span class="navbar-user">

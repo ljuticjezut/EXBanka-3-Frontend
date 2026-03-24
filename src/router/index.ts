@@ -48,6 +48,14 @@ const router = createRouter({
           path: 'accounts/new',
           component: () => import('../views/CreateAccountView.vue'),
         },
+        {
+          path: 'loans/requests',
+          component: () => import('../views/LoanRequestsView.vue'),
+        },
+        {
+          path: 'loans',
+          component: () => import('../views/LoansView.vue'),
+        },
       ],
     },
     ...clientRoutes,
