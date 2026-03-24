@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { usePaymentStore } from '../../stores/payment'
 import { useClientAuthStore } from '../../stores/clientAuth'
 import type { PaymentItem } from '../../api/payment'
+import { transferApi, type TransferItem } from '../../api/transfer'
 import jsPDF from 'jspdf'
 
 const router = useRouter()
@@ -14,6 +15,7 @@ const clientId = computed(() => String(clientAuthStore.client?.id ?? ''))
 
 const selectedPayment = ref<PaymentItem | null>(null)
 const filter = ref({ status: '', dateFrom: '', dateTo: '', minAmount: '', maxAmount: '' })
+const exchangeTransfers = ref<TransferItem[]>([])
 
 async function applyFilter() {
   paymentStore.page = 1
@@ -52,6 +54,16 @@ function statusClass(s: string) {
     case 'u_obradi': return 'pst-pending'
     case 'stornirano': return 'pst-neutral'
     default: return 'pst-neutral'
+  }
+}
+
+function badgeClass(s: string) {
+  switch (s) {
+    case 'uspesno': return 'badge-success'
+    case 'neuspesno': return 'badge-error'
+    case 'u_obradi': return 'badge-warning'
+    case 'stornirano': return 'badge-neutral'
+    default: return 'badge-neutral'
   }
 }
 
@@ -98,8 +110,24 @@ function printPotvrda(p: PaymentItem) {
   doc.save(`potvrda-placanja-${p.id}.pdf`)
 }
 
+async function loadExchangeTransfers() {
+  if (!clientId.value) return
+  try {
+    const res = await transferApi.listByClient(clientId.value)
+    const all: TransferItem[] = res.data.transfers ?? []
+    exchangeTransfers.value = all.filter(t => t.kurs !== 0 && t.kurs !== 1)
+  } catch {
+    exchangeTransfers.value = []
+  }
+}
+
 onMounted(async () => {
-  if (clientId.value) await paymentStore.fetchByClient(clientId.value)
+  if (clientId.value) {
+    await Promise.all([
+      paymentStore.fetchByClient(clientId.value),
+      loadExchangeTransfers(),
+    ])
+  }
 })
 </script>
 
@@ -107,7 +135,7 @@ onMounted(async () => {
   <div class="pv-page">
     <div class="pv-header">
       <div>
-        <h1 class="pv-title">Pregled plaćanja</h1>
+        <h1 class="pv-title">Plaćanja</h1>
         <p class="pv-subtitle">Istorija svih vaših plaćanja</p>
       </div>
       <button class="pv-btn pv-btn-primary" @click="router.push('/client/payments/new')">+ Novo plaćanje</button>
@@ -154,7 +182,7 @@ onMounted(async () => {
       <div
         v-for="p in paymentStore.payments"
         :key="p.id"
-        class="pv-card"
+        class="pv-card payment-row"
         @click="selectedPayment = p"
       >
         <div class="pv-card-left">
@@ -168,7 +196,7 @@ onMounted(async () => {
         </div>
         <div class="pv-card-right">
           <div class="pv-card-amount">{{ p.iznos.toLocaleString('sr-RS', { minimumFractionDigits: 2 }) }}</div>
-          <span :class="['pv-status', statusClass(p.status)]">{{ statusLabel(p.status) }}</span>
+          <span :class="['pv-status', 'badge', badgeClass(p.status)]">{{ p.status }}</span>
         </div>
       </div>
     </div>
@@ -180,12 +208,43 @@ onMounted(async () => {
       <button :disabled="paymentStore.page >= totalPages" @click="nextPage">›</button>
     </div>
 
+    <!-- Exchange transactions -->
+    <div class="pv-exchange-section">
+      <h2 class="pv-section-title">Menjačke transakcije</h2>
+      <div v-if="exchangeTransfers.length === 0" class="pv-empty">Nema menjačkih transakcija.</div>
+      <div v-else class="pv-list">
+        <div
+          v-for="t in exchangeTransfers"
+          :key="t.id"
+          class="pv-card exchange-row"
+        >
+          <div class="pv-card-left">
+            <div class="pv-card-icon pst-pending">↻</div>
+            <div class="pv-card-info">
+              <div class="pv-card-svrha">{{ t.svrha || 'Menjanje valute' }}</div>
+              <div class="pv-card-meta">
+                {{ new Date(t.vremeTransakcije).toLocaleDateString('sr-RS') }} · {{ t.valutaIznosa }}
+              </div>
+            </div>
+          </div>
+          <div class="pv-card-right">
+            <div class="pv-card-amount">
+              {{ t.iznos.toLocaleString('sr-RS', { minimumFractionDigits: 2 }) }} {{ t.valutaIznosa }}
+              → {{ t.konvertovaniIznos.toLocaleString('sr-RS', { minimumFractionDigits: 2 }) }}
+            </div>
+            <div class="pv-exchange-kurs">Kurs: {{ t.kurs }}</div>
+            <span :class="['pv-status', 'badge', badgeClass(t.status)]">{{ t.status }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Detail Modal -->
-    <div v-if="selectedPayment" class="pv-overlay" @click.self="selectedPayment = null">
+    <div v-if="selectedPayment" class="pv-overlay modal-overlay" @click.self="selectedPayment = null">
       <div class="pv-modal">
         <div class="pv-modal-header">
           <h2>Detalji plaćanja</h2>
-          <button class="pv-modal-close" @click="selectedPayment = null">✕</button>
+          <button class="pv-modal-close modal-close" @click="selectedPayment = null">✕</button>
         </div>
         <div class="pv-modal-body">
           <div class="pv-detail-status" :class="statusClass(selectedPayment.status)">
@@ -341,4 +400,16 @@ onMounted(async () => {
 .pv-detail-item:last-child { border-bottom: none; }
 .pv-detail-label { color: #64748b; }
 .pv-mono { font-family: 'SF Mono', monospace; font-size: 13px; }
+
+/* Exchange section */
+.pv-exchange-section { margin-top: 32px; }
+.pv-section-title { font-size: 18px; font-weight: 700; color: #0f172a; margin-bottom: 16px; }
+.pv-exchange-kurs { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+
+/* Badge aliases */
+.badge { }
+.badge-success { background: #dcfce7; color: #166534; }
+.badge-error { background: #fee2e2; color: #991b1b; }
+.badge-warning { background: #fef9c3; color: #854d0e; }
+.badge-neutral { background: #f1f5f9; color: #475569; }
 </style>

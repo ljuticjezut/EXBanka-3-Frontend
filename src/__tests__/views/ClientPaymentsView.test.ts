@@ -27,6 +27,10 @@ vi.mock('../../api/clientAuth', () => ({
   default: { get: vi.fn(), post: vi.fn(), interceptors: { request: { use: vi.fn() } } },
 }))
 
+vi.mock('../../api/transfer', () => ({
+  transferApi: { listByClient: vi.fn() },
+}))
+
 vi.mock('jspdf', () => {
   const mockSave = vi.fn()
   const mockDoc = {
@@ -41,6 +45,7 @@ vi.mock('jspdf', () => {
 })
 
 import { paymentApi } from '../../api/payment'
+import { transferApi } from '../../api/transfer'
 
 const mockPayments = [
   {
@@ -78,6 +83,21 @@ const mockPayments = [
   },
 ]
 
+const mockExchangeTransfers = [
+  {
+    id: 'e1',
+    racunPosiljaocaId: '10',
+    racunPrimaocaId: '20',
+    iznos: 100,
+    valutaIznosa: 'EUR',
+    konvertovaniIznos: 11750,
+    kurs: 117.5,
+    svrha: 'Menjanje valute',
+    status: 'uspesno',
+    vremeTransakcije: '2026-03-05T10:00:00Z',
+  },
+]
+
 describe('ClientPaymentsView', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
@@ -89,6 +109,9 @@ describe('ClientPaymentsView', () => {
 
     vi.mocked(paymentApi.listByClient).mockResolvedValue({
       data: { payments: mockPayments, total: 3 },
+    })
+    vi.mocked(transferApi.listByClient).mockResolvedValue({
+      data: { transfers: mockExchangeTransfers, total: 1 },
     })
   })
 
@@ -270,5 +293,33 @@ describe('ClientPaymentsView', () => {
     expect(paymentApi.listByClient).toHaveBeenCalledWith('5',
       expect.objectContaining({ maxAmount: 5000 })
     )
+  })
+
+  // S2-BONUS-11: Exchange transactions
+  it('renders Menjačke transakcije section', async () => {
+    const wrapper = mount(ClientPaymentsView)
+    await flushPromises()
+    expect(wrapper.text()).toContain('Menjačke transakcije')
+  })
+
+  it('loads exchange transactions on mount', async () => {
+    mount(ClientPaymentsView)
+    await flushPromises()
+    expect(transferApi.listByClient).toHaveBeenCalledWith('5')
+  })
+
+  it('shows exchange transaction rows', async () => {
+    const wrapper = mount(ClientPaymentsView)
+    await flushPromises()
+    const rows = wrapper.findAll('.exchange-row')
+    expect(rows).toHaveLength(1)
+    expect(wrapper.text()).toContain('Menjanje valute')
+  })
+
+  it('exchange row shows iznos, valutaIznosa and converted amount', async () => {
+    const wrapper = mount(ClientPaymentsView)
+    await flushPromises()
+    expect(wrapper.text()).toContain('EUR')
+    expect(wrapper.text()).toContain('11.750')
   })
 })
