@@ -45,7 +45,7 @@ async function handleSave() {
   formError.value = ''
   try {
     if (editingId.value) {
-      await store.updateRecipient(editingId.value, form.value.naziv, form.value.brojRacuna)
+      await store.updateRecipient(editingId.value, clientId.value, form.value.naziv, form.value.brojRacuna)
     } else {
       await store.createRecipient(clientId.value, form.value.naziv, form.value.brojRacuna)
     }
@@ -69,7 +69,7 @@ async function handleDelete() {
   if (!deletingId.value) return
   deleteLoading.value = true
   try {
-    await store.deleteRecipient(deletingId.value)
+    await store.deleteRecipient(deletingId.value, clientId.value)
     deletingId.value = null
   } catch (e: any) {
     store.error = e.response?.data?.message || 'Greška pri brisanju.'

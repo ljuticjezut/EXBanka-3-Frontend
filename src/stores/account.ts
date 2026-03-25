@@ -4,6 +4,7 @@ import { accountApi, type CreateAccountPayload, type AccountProto } from '../api
 
 interface AccountFilters {
   clientName: string
+  accountNumber: string
   tip: string
   vrsta: string
   status: string
@@ -22,7 +23,7 @@ export const useAccountStore = defineStore('account', () => {
   const page = ref(1)
   const pageSize = 20
   const filters = ref<AccountFilters>({
-    clientName: '', tip: '', vrsta: '', status: '', currencyId: undefined,
+    clientName: '', accountNumber: '', tip: '', vrsta: '', status: '', currencyId: undefined,
   })
 
   async function createAccount(data: CreateAccountPayload): Promise<AccountProto> {
@@ -47,6 +48,7 @@ export const useAccountStore = defineStore('account', () => {
     try {
       const res = await accountApi.listAll({
         clientName: filters.value.clientName || undefined,
+        accountNumber: filters.value.accountNumber || undefined,
         tip:        filters.value.tip || undefined,
         vrsta:      filters.value.vrsta || undefined,
         status:     filters.value.status || undefined,
@@ -74,7 +76,7 @@ export const useAccountStore = defineStore('account', () => {
   }
 
   function clearFilters() {
-    filters.value = { clientName: '', tip: '', vrsta: '', status: '', currencyId: undefined }
+    filters.value = { clientName: '', accountNumber: '', tip: '', vrsta: '', status: '', currencyId: undefined }
     page.value = 1
   }
 

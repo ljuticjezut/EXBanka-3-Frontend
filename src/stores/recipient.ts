@@ -27,15 +27,15 @@ export const useRecipientStore = defineStore('recipient', () => {
     return created
   }
 
-  async function updateRecipient(id: string, naziv: string, brojRacuna: string): Promise<void> {
-    const res = await recipientApi.update(id, naziv, brojRacuna)
+  async function updateRecipient(id: string, clientId: string, naziv: string, brojRacuna: string): Promise<void> {
+    const res = await recipientApi.update(id, clientId, naziv, brojRacuna)
     const updated: RecipientItem = res.data.recipient
     const idx = recipients.value.findIndex(r => r.id === id)
     if (idx !== -1) recipients.value[idx] = updated
   }
 
-  async function deleteRecipient(id: string): Promise<void> {
-    await recipientApi.delete(id)
+  async function deleteRecipient(id: string, clientId: string): Promise<void> {
+    await recipientApi.delete(id, clientId)
     recipients.value = recipients.value.filter(r => r.id !== id)
   }
 

@@ -12,7 +12,7 @@ export const useClientAccountStore = defineStore('clientAccount', () => {
     error.value = ''
     try {
       const res = await clientAccountApi.listByClient(clientId)
-      accounts.value = res.data.accounts ?? []
+      accounts.value = Array.isArray(res.data) ? res.data : (res.data.accounts ?? [])
     } catch (e: any) {
       error.value = e.response?.data?.message || 'Failed to load accounts.'
     } finally {

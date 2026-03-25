@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAccountStore } from '../stores/account'
 import { clientManagementApi } from '../api/clientManagement'
@@ -28,17 +28,6 @@ function clientName(clientId: string): string {
   return c ? `${c.prezime} ${c.ime}` : '—'
 }
 
-function clientPrezime(clientId: string): string {
-  return clientMap.value[clientId]?.prezime ?? ''
-}
-
-// Sort accounts by client prezime
-const sortedAccounts = computed(() => {
-  return [...store.accounts].sort((a, b) =>
-    clientPrezime(a.clientId).localeCompare(clientPrezime(b.clientId), 'sr-RS')
-  )
-})
-
 // Filters
 const filterName = ref('')
 const filterBrojRacuna = ref('')
@@ -46,6 +35,7 @@ const filterBrojRacuna = ref('')
 function applyFilters() {
   store.setFilters({
     clientName: filterName.value,
+    accountNumber: filterBrojRacuna.value,
   })
   store.fetchAllAccounts()
 }
@@ -56,13 +46,6 @@ function clearFilters() {
   store.clearFilters()
   store.fetchAllAccounts()
 }
-
-// Filter locally by broj racuna (backend doesn't support it)
-const filteredAccounts = computed(() => {
-  if (!filterBrojRacuna.value) return sortedAccounts.value
-  const q = filterBrojRacuna.value.toLowerCase()
-  return sortedAccounts.value.filter(a => a.brojRacuna.toLowerCase().includes(q))
-})
 
 function tipLabel(tip: string) {
   return tip === 'tekuci' ? 'Tekući' : tip === 'devizni' ? 'Devizni' : tip
@@ -213,11 +196,11 @@ onMounted(async () => {
           <tr v-if="store.loading">
             <td colspan="4" style="text-align:center;padding:24px;color:#6b7280">Učitavam...</td>
           </tr>
-          <tr v-else-if="filteredAccounts.length === 0">
+          <tr v-else-if="store.accounts.length === 0">
             <td colspan="4" style="text-align:center;padding:24px;color:#6b7280">Nema pronađenih računa.</td>
           </tr>
           <tr
-            v-for="account in filteredAccounts"
+            v-for="account in store.accounts"
             :key="account.id"
             :class="{ 'row-selected': selectedAccount?.id === account.id }"
             style="cursor:pointer"

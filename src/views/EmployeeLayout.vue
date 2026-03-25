@@ -15,10 +15,12 @@ function logout() {
 }
 
 const allNavItems = [
-  { to: '/employees', label: 'Zaposleni', icon: '⬡', perm: 'manageAll' },
+  { to: '/employees', label: 'Zaposleni', icon: '□', perm: 'manageAll' },
   { to: '/clients', label: 'Klijenti', icon: '◉', perm: 'clients' },
   { to: '/accounts', label: 'Računi', icon: '◈', perm: 'bankOps' },
   { to: '/accounts/new', label: 'Novi račun', icon: '+', perm: 'bankOps' },
+  { to: '/loans/requests', label: 'Zahtevi kredita', icon: '▣', perm: 'bankOps' },
+  { to: '/loans', label: 'Krediti', icon: '◇', perm: 'bankOps' },
 ]
 
 const navItems = computed(() =>

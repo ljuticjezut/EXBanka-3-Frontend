@@ -17,12 +17,18 @@ const selectedPayment = ref<PaymentItem | null>(null)
 const filter = ref({ status: '', dateFrom: '', dateTo: '', minAmount: '', maxAmount: '' })
 const exchangeTransfers = ref<TransferItem[]>([])
 
+function toRFC3339Date(date: string, endOfDay = false) {
+  if (!date) return undefined
+  const suffix = endOfDay ? 'T23:59:59Z' : 'T00:00:00Z'
+  return `${date}${suffix}`
+}
+
 async function applyFilter() {
   paymentStore.page = 1
   await paymentStore.fetchByClient(clientId.value, {
     status: filter.value.status || undefined,
-    dateFrom: filter.value.dateFrom || undefined,
-    dateTo: filter.value.dateTo || undefined,
+    dateFrom: toRFC3339Date(filter.value.dateFrom),
+    dateTo: toRFC3339Date(filter.value.dateTo, true),
     minAmount: filter.value.minAmount ? Number(filter.value.minAmount) : undefined,
     maxAmount: filter.value.maxAmount ? Number(filter.value.maxAmount) : undefined,
   })
@@ -196,7 +202,7 @@ onMounted(async () => {
         </div>
         <div class="pv-card-right">
           <div class="pv-card-amount">{{ p.iznos.toLocaleString('sr-RS', { minimumFractionDigits: 2 }) }}</div>
-          <span :class="['pv-status', 'badge', badgeClass(p.status)]">{{ p.status }}</span>
+          <span :class="['pv-status', 'badge', badgeClass(p.status)]">{{ statusLabel(p.status) }}</span>
         </div>
       </div>
     </div>
@@ -233,7 +239,7 @@ onMounted(async () => {
               → {{ t.konvertovaniIznos.toLocaleString('sr-RS', { minimumFractionDigits: 2 }) }}
             </div>
             <div class="pv-exchange-kurs">Kurs: {{ t.kurs }}</div>
-            <span :class="['pv-status', 'badge', badgeClass(t.status)]">{{ t.status }}</span>
+            <span :class="['pv-status', 'badge', badgeClass(t.status)]">{{ statusLabel(t.status) }}</span>
           </div>
         </div>
       </div>

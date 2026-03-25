@@ -21,6 +21,10 @@ export const clientRoutes: RouteRecordRaw[] = [
         component: () => import('../views/client/ClientAccountsView.vue'),
       },
       {
+        path: 'prenos',
+        component: () => import('../views/client/ClientPrenosView.vue'),
+      },
+      {
         path: 'transfers',
         component: () => import('../views/client/ClientTransfersView.vue'),
       },

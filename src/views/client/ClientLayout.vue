@@ -19,7 +19,7 @@ function isActive(path: string) {
 
 function isPaymentSection() {
   return route.path.startsWith('/client/payments') ||
-    route.path.startsWith('/client/transfers') ||
+    route.path.startsWith('/client/prenos') ||
     route.path.startsWith('/client/recipients')
 }
 </script>
@@ -34,36 +34,47 @@ function isPaymentSection() {
 
       <nav class="sidebar-nav">
         <RouterLink to="/client/dashboard" class="sidebar-link" :class="{ active: isActive('/client/dashboard') }">
-          <span class="sidebar-icon">⬡</span><span>Dashboard</span>
+          <span class="sidebar-icon">[]</span><span>Dashboard</span>
         </RouterLink>
 
         <RouterLink to="/client/accounts" class="sidebar-link" :class="{ active: isActive('/client/accounts') }">
-          <span class="sidebar-icon">◈</span><span>Računi</span>
+          <span class="sidebar-icon">o</span><span>Racuni</span>
+        </RouterLink>
+
+        <RouterLink to="/client/transfers" class="sidebar-link" :class="{ active: isActive('/client/transfers') }">
+          <span class="sidebar-icon">&lt;&gt;</span><span>Transferi</span>
         </RouterLink>
 
         <RouterLink to="/client/exchange" class="sidebar-link" :class="{ active: isActive('/client/exchange') }">
-          <span class="sidebar-icon">↻</span><span>Menjačnica</span>
+          <span class="sidebar-icon">@</span><span>Menjacnica</span>
         </RouterLink>
 
-        <!-- Plaćanja with submenu -->
+        <RouterLink to="/client/loans" class="sidebar-link" :class="{ active: isActive('/client/loans') }">
+          <span class="sidebar-icon">#</span><span>Krediti</span>
+        </RouterLink>
+
+        <RouterLink to="/client/cards" class="sidebar-link" :class="{ active: isActive('/client/cards') }">
+          <span class="sidebar-icon">*</span><span>Kartice</span>
+        </RouterLink>
+
         <button class="sidebar-link sidebar-group-btn" :class="{ active: isPaymentSection() }" @click="paymentsOpen = !paymentsOpen">
-          <span class="sidebar-icon">▤</span>
-          <span style="flex:1;text-align:left">Plaćanja</span>
-          <span class="sidebar-arrow" :class="{ open: paymentsOpen }">›</span>
+          <span class="sidebar-icon">+</span>
+          <span style="flex:1;text-align:left">Placanja</span>
+          <span class="sidebar-arrow" :class="{ open: paymentsOpen }">&gt;</span>
         </button>
 
         <div v-if="paymentsOpen" class="sidebar-submenu">
           <RouterLink to="/client/payments/new" class="sidebar-sublink" :class="{ active: isActive('/client/payments/new') }">
-            Novo plaćanje
+            Novo placanje
           </RouterLink>
-          <RouterLink to="/client/transfers" class="sidebar-sublink" :class="{ active: isActive('/client/transfers') }">
+          <RouterLink to="/client/prenos" class="sidebar-sublink" :class="{ active: isActive('/client/prenos') }">
             Prenos
           </RouterLink>
           <RouterLink to="/client/recipients" class="sidebar-sublink" :class="{ active: isActive('/client/recipients') }">
-            Primaoci plaćanja
+            Primaoci placanja
           </RouterLink>
           <RouterLink to="/client/payments" class="sidebar-sublink" :class="{ active: route.path === '/client/payments' }">
-            Pregled plaćanja
+            Pregled placanja
           </RouterLink>
         </div>
       </nav>

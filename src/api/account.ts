@@ -1,16 +1,13 @@
 import api from './client'
 
-// Static currency list matching seed order (INFRA-BE-2)
-export const CURRENCIES = [
-  { id: 1, kod: 'RSD', naziv: 'Serbian Dinar' },
-  { id: 2, kod: 'EUR', naziv: 'Euro' },
-  { id: 3, kod: 'USD', naziv: 'US Dollar' },
-  { id: 4, kod: 'CHF', naziv: 'Swiss Franc' },
-  { id: 5, kod: 'GBP', naziv: 'British Pound' },
-  { id: 6, kod: 'JPY', naziv: 'Japanese Yen' },
-  { id: 7, kod: 'CAD', naziv: 'Canadian Dollar' },
-  { id: 8, kod: 'AUD', naziv: 'Australian Dollar' },
-]
+export interface CurrencyOption {
+  id: number
+  kod: string
+  naziv: string
+  simbol?: string
+  drzava?: string
+  aktivan?: boolean
+}
 
 export interface CreateAccountPayload {
   clientId: number
@@ -18,6 +15,7 @@ export interface CreateAccountPayload {
   currencyId: number
   tip: string   // 'tekuci' | 'devizni'
   vrsta: string // 'licni' | 'poslovni'
+  podvrsta?: string
   naziv?: string
   pocetnoStanje?: number
 }
@@ -31,6 +29,7 @@ export interface AccountProto {
   currencyKod: string
   tip: string
   vrsta: string
+  podvrsta?: string
   stanje: number
   raspolozivoStanje: number
   dnevniLimit: number
@@ -40,6 +39,8 @@ export interface AccountProto {
 }
 
 export const accountApi = {
+  listCurrencies: () => api.get<{ currencies: CurrencyOption[] }>('/currencies'),
+
   create: (data: CreateAccountPayload) =>
     api.post('/accounts/create', {
       clientId:      data.clientId,
@@ -47,6 +48,7 @@ export const accountApi = {
       currencyId:    data.currencyId,
       tip:           data.tip,
       vrsta:         data.vrsta,
+      podvrsta:      data.podvrsta ?? '',
       naziv:         data.naziv ?? '',
       pocetnoStanje: data.pocetnoStanje ?? 0,
     }),
@@ -57,14 +59,16 @@ export const accountApi = {
 
   listAll: (params: {
     clientName?: string
+    accountNumber?: string
     tip?: string
     vrsta?: string
     status?: string
     currencyId?: number
     page?: number
     pageSize?: number
-  }) => api.get('/accounts', { params: {
+  }) => api.get('/accounts/search', { params: {
     client_name:  params.clientName,
+    account_number: params.accountNumber,
     tip:          params.tip,
     vrsta:        params.vrsta,
     status:       params.status,

@@ -42,6 +42,17 @@ const failedAttempts = ref(0)
 const maxAttempts = 3
 let verifyTimerInterval: ReturnType<typeof setInterval> | null = null
 
+const payableAccounts = computed(() =>
+  accountStore.accounts.filter(a => a.currencyKod === 'RSD')
+)
+
+const remainingAttempts = computed(() => Math.max(0, maxAttempts - failedAttempts.value))
+void remainingAttempts
+
+const verifyDisabled = computed(() =>
+  verificationCode.value.length !== 6 || codeExpired.value || failedAttempts.value >= maxAttempts || paymentStore.loading
+)
+
 const verifyCountdown = computed(() => {
   const m = Math.floor(verifySecondsLeft.value / 60)
   const s = verifySecondsLeft.value % 60
@@ -112,11 +123,24 @@ function goToConfirm() {
   formError.value = ''
   if (!form.value.fromAccountId) { formError.value = 'Izaberite račun platioca.'; return }
   if (!receiverBrojRacuna.value) { formError.value = 'Unesite broj računa primaoca.'; return }
-  if (!validateAccountNumber(receiverBrojRacuna.value)) { formError.value = 'Broj računa primaoca je neispravan (checksum greška).'; return }
+  if (!validateAccountNumber(receiverBrojRacuna.value)) { formError.value = 'Broj računa primaoca je neispravan.'; return }
   if (!form.value.iznos || Number(form.value.iznos) <= 0) { formError.value = 'Unesite validan iznos.'; return }
   if (!form.value.svrha.trim()) { formError.value = 'Unesite svrhu plaćanja.'; return }
   step.value = 'confirm'
 }
+
+function goToConfirmSecure() {
+  formError.value = ''
+  const selectedAccount = fromAccount.value
+  if (!selectedAccount) { formError.value = 'Izaberite racun platioca.'; return }
+  if (selectedAccount.currencyKod !== 'RSD') { formError.value = 'Placanja su trenutno podrzana samo za RSD racune.'; return }
+  if (!receiverBrojRacuna.value) { formError.value = 'Unesite broj racuna primaoca.'; return }
+  if (!validateAccountNumber(receiverBrojRacuna.value)) { formError.value = 'Broj racuna primaoca je neispravan.'; return }
+  if (!form.value.iznos || Number(form.value.iznos) <= 0) { formError.value = 'Unesite validan iznos.'; return }
+  if (!form.value.svrha.trim()) { formError.value = 'Unesite svrhu placanja.'; return }
+  step.value = 'confirm'
+}
+void goToConfirm
 
 async function handleSubmit() {
   try {
@@ -152,6 +176,44 @@ async function handleVerify() {
     verifyError.value = e.response?.data?.message || 'Neispravan verifikacioni kod.'
   }
 }
+
+async function handleVerifySecure() {
+  if (!verificationCode.value || verificationCode.value.length !== 6) {
+    verifyError.value = 'Unesite 6-cifreni verifikacioni kod.'
+    return
+  }
+  verifyError.value = ''
+  try {
+    await paymentStore.verifyPayment(createdPayment.value!.id, verificationCode.value)
+    await Promise.all([
+      accountStore.fetchAccounts(clientId.value),
+      paymentStore.fetchByClient(clientId.value),
+    ])
+    step.value = 'success'
+  } catch (e: any) {
+    const message = e.response?.data?.message || 'Neispravan verifikacioni kod.'
+    failedAttempts.value = Math.min(maxAttempts, failedAttempts.value + 1)
+    verifyError.value = message
+
+    const normalizedMessage = String(message).toLowerCase()
+    if (
+      normalizedMessage.includes('expired') ||
+      normalizedMessage.includes('cancelled') ||
+      normalizedMessage.includes('not pending') ||
+      normalizedMessage.includes('exceeded')
+    ) {
+      codeExpired.value = true
+      if (normalizedMessage.includes('exceeded')) {
+        failedAttempts.value = maxAttempts
+      }
+      if (verifyTimerInterval) {
+        clearInterval(verifyTimerInterval)
+        verifyTimerInterval = null
+      }
+    }
+  }
+}
+void handleVerify
 
 async function addRecipient() {
   if (!receiverBrojRacuna.value) return
@@ -274,7 +336,7 @@ onMounted(async () => {
           <label>Račun platioca</label>
           <select v-model="form.fromAccountId">
             <option value="">-- Izaberite račun --</option>
-            <option v-for="acc in accountStore.accounts" :key="acc.id" :value="String(acc.id)">
+            <option v-for="acc in payableAccounts" :key="acc.id" :value="String(acc.id)">
               {{ acc.naziv || acc.brojRacuna }} ({{ acc.currencyKod }}) — {{ acc.raspolozivoStanje.toLocaleString('sr-RS', { minimumFractionDigits: 2 }) }}
             </option>
           </select>
@@ -282,7 +344,7 @@ onMounted(async () => {
 
         <div v-if="formError" class="pay-error">{{ formError }}</div>
 
-        <button class="pay-btn pay-btn-primary" @click="goToConfirm">Nastavi</button>
+        <button class="pay-btn pay-btn-primary" @click="goToConfirmSecure">Nastavi</button>
       </div>
 
       <!-- CONFIRM -->
@@ -344,13 +406,13 @@ onMounted(async () => {
             type="text" maxlength="6" placeholder="• • • • • •"
             class="pay-code-input"
             :disabled="codeExpired"
-            @keyup.enter="handleVerify"
+            @keyup.enter="handleVerifySecure"
           />
         </div>
         <div v-if="verifyError" class="pay-error">{{ verifyError }}</div>
         <div class="pay-actions">
           <button class="pay-btn pay-btn-sec" @click="step = 'confirm'">Nazad</button>
-          <button class="pay-btn pay-btn-primary" :disabled="verificationCode.length !== 6 || codeExpired" @click="handleVerify">
+          <button class="pay-btn pay-btn-primary" :disabled="verifyDisabled" @click="handleVerifySecure">
             Potvrdi kod
           </button>
         </div>
