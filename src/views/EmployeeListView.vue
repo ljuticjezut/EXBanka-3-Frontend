@@ -107,7 +107,7 @@ function clearFilters() {
 }
 
 function isAdmin(emp: EmployeeListItem): boolean {
-  return emp.permissionNames.includes('admin')
+  return emp.permissionNames.includes('employeeAdmin')
 }
 
 const currentEmployeeId = computed(() => auth.employee?.id ?? null)

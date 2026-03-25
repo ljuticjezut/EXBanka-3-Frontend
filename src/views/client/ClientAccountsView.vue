@@ -79,8 +79,6 @@ const showLimits = ref(false)
 const limitsForm = ref({ dnevni: '', mesecni: '' })
 const limitsError = ref('')
 const limitsLoading = ref(false)
-const limitsStep = ref<'form' | 'verify' | 'done'>('form')
-const limitsCode = ref('')
 
 function openLimits() {
   limitsForm.value = {
@@ -88,22 +86,10 @@ function openLimits() {
     mesecni: String(detailsAccount.value?.mesecniLimit ?? 0),
   }
   limitsError.value = ''
-  limitsStep.value = 'form'
-  limitsCode.value = ''
   showLimits.value = true
 }
 
 async function handleLimitsSubmit() {
-  // Simple 6-digit code verification (generated client-side for now)
-  limitsStep.value = 'verify'
-}
-
-async function handleLimitsVerify() {
-  if (limitsCode.value.length !== 6) {
-    limitsError.value = 'Unesite 6-cifreni kod.'
-    return
-  }
-  // Accept any 6-digit code for now (real verification would go through backend)
   limitsLoading.value = true
   limitsError.value = ''
   try {
@@ -113,7 +99,7 @@ async function handleLimitsVerify() {
     })
     detailsAccount.value!.dnevniLimit = Number(limitsForm.value.dnevni)
     detailsAccount.value!.mesecniLimit = Number(limitsForm.value.mesecni)
-    limitsStep.value = 'done'
+    showLimits.value = false
     if (authStore.client?.id) await store.fetchAccounts(authStore.client.id)
   } catch (e: any) {
     limitsError.value = e.response?.data?.message || 'Greška pri promeni limita.'
@@ -132,6 +118,20 @@ function tipLabel(tip: string) {
 
 function vrstaLabel(vrsta: string) {
   return vrsta === 'licni' ? 'Lični' : 'Poslovni'
+}
+
+function podvrstaLabel(podvrsta?: string) {
+  return {
+    standardni: 'Standardni',
+    stedni: 'Stedni',
+    penzionerski: 'Penzionerski',
+    za_mlade: 'Za mlade',
+    za_studente: 'Za studente',
+    za_nezaposlene: 'Za nezaposlene',
+    doo: 'DOO',
+    ad: 'AD',
+    fondacija: 'Fondacija',
+  }[podvrsta ?? ''] ?? podvrsta ?? ''
 }
 
 function formatDate(iso: string) {
@@ -326,7 +326,12 @@ onMounted(() => {
           </div>
           <div style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid #f1f5f9;font-size:14px">
             <span style="color:#64748b">Tip</span>
-            <span style="color:#0f172a">{{ tipLabel(detailsAccount.tip) }} — {{ vrstaLabel(detailsAccount.vrsta) }}</span>
+            <span style="color:#0f172a">
+              {{ tipLabel(detailsAccount.tip) }} — {{ vrstaLabel(detailsAccount.vrsta) }}
+              <template v-if="detailsAccount.podvrsta">
+                — {{ podvrstaLabel(detailsAccount.podvrsta) }}
+              </template>
+            </span>
           </div>
           <template v-if="detailsAccount.vrsta === 'poslovni' && detailsAccount.firma">
             <div style="padding:10px 0 4px;font-size:12px;font-weight:600;color:#94a3b8;letter-spacing:0.05em;text-transform:uppercase">Podaci o firmi</div>
@@ -423,7 +428,6 @@ onMounted(() => {
         <button class="modal-close" @click="showLimits = false">✕</button>
       </div>
       <div class="modal-body">
-        <template v-if="limitsStep === 'form'">
           <div class="form-group" style="margin-bottom:14px">
             <label>Dnevni limit</label>
             <input v-model="limitsForm.dnevni" type="number" min="0" />
@@ -432,35 +436,13 @@ onMounted(() => {
             <label>Mesečni limit</label>
             <input v-model="limitsForm.mesecni" type="number" min="0" />
           </div>
-        </template>
-        <template v-else-if="limitsStep === 'verify'">
-          <p style="color:#64748b;font-size:14px;margin-bottom:16px">Unesite 6-cifreni verifikacioni kod za potvrdu promene limita.</p>
-          <div class="form-group">
-            <input v-model="limitsCode" type="text" maxlength="6" placeholder="• • • • • •" style="text-align:center;font-size:24px;font-weight:700;letter-spacing:10px" @keyup.enter="handleLimitsVerify" />
-          </div>
-        </template>
-        <template v-else>
-          <div style="text-align:center;padding:16px 0">
-            <div style="font-size:40px;margin-bottom:8px;color:#16a34a">✓</div>
-            <p style="font-weight:600;font-size:16px">Limiti uspešno promenjeni!</p>
-          </div>
-        </template>
         <p v-if="limitsError" class="global-error" style="margin-top:8px">{{ limitsError }}</p>
       </div>
       <div class="modal-footer">
-        <template v-if="limitsStep === 'form'">
-          <button class="btn-secondary" @click="showLimits = false">Otkaži</button>
-          <button class="btn-primary" @click="handleLimitsSubmit">Nastavi</button>
-        </template>
-        <template v-else-if="limitsStep === 'verify'">
-          <button class="btn-secondary" @click="limitsStep = 'form'">Nazad</button>
-          <button class="btn-primary" :disabled="limitsCode.length !== 6 || limitsLoading" @click="handleLimitsVerify">
-            {{ limitsLoading ? 'Čuvam...' : 'Potvrdi' }}
-          </button>
-        </template>
-        <template v-else>
-          <button class="btn-primary" style="width:100%" @click="showLimits = false">Zatvori</button>
-        </template>
+        <button class="btn-secondary" @click="showLimits = false">Otkaži</button>
+        <button class="btn-primary" :disabled="limitsLoading" @click="handleLimitsSubmit">
+          {{ limitsLoading ? 'Čuvam...' : 'Sačuvaj' }}
+        </button>
       </div>
     </div>
   </div>

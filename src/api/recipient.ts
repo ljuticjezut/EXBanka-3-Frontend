@@ -18,12 +18,13 @@ export const recipientApi = {
       broj_racuna: brojRacuna,
     }),
 
-  update: (id: string, naziv: string, brojRacuna: string) =>
+  update: (id: string, clientId: string, naziv: string, brojRacuna: string) =>
     clientApi.put(`/recipients/${id}`, {
+      client_id: clientId,
       naziv,
       broj_racuna: brojRacuna,
     }),
 
-  delete: (id: string) =>
-    clientApi.delete(`/recipients/${id}`),
+  delete: (id: string, clientId: string) =>
+    clientApi.delete(`/recipients/${id}`, { data: { client_id: clientId } }),
 }

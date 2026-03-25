@@ -8,10 +8,24 @@ export interface TransferItem {
   valutaIznosa: string
   konvertovaniIznos: number
   kurs: number
+  provizija: number
+  provizijaProcent: number
   svrha: string
   status: string
   verifikacioniKod?: string
   vremeTransakcije: string
+}
+
+export interface TransferPreview {
+  racunPosiljaocaId: string
+  racunPrimaocaId: string
+  iznos: number
+  valutaIznosa: string
+  konvertovaniIznos: number
+  kurs: number
+  provizija: number
+  provizijaProcent: number
+  svrha: string
 }
 
 export interface CreateTransferPayload {
@@ -34,6 +48,14 @@ export interface TransferFilter {
 export const transferApi = {
   create: (data: CreateTransferPayload) =>
     clientApi.post('/transfers', {
+      racun_posiljaoca_id: data.racunPosiljaocaId,
+      racun_primaoca_id:   data.racunPrimaocaId,
+      iznos:               data.iznos,
+      svrha:               data.svrha,
+    }),
+
+  preview: (data: CreateTransferPayload) =>
+    clientApi.post('/transfers/preview', {
       racun_posiljaoca_id: data.racunPosiljaocaId,
       racun_primaoca_id:   data.racunPrimaocaId,
       iznos:               data.iznos,

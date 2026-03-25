@@ -17,6 +17,7 @@ function logout() {
       <span class="navbar-brand">EXBanka</span>
       <RouterLink to="/client/dashboard" style="color:#93c5fd;font-size:14px;text-decoration:none" active-class="navbar-nav-active">Dashboard</RouterLink>
       <RouterLink to="/client/accounts" style="color:#93c5fd;font-size:14px;text-decoration:none" active-class="navbar-nav-active">Računi</RouterLink>
+      <RouterLink to="/client/prenos" style="color:#93c5fd;font-size:14px;text-decoration:none" active-class="navbar-nav-active">Prenos</RouterLink>
       <RouterLink to="/client/transfers" style="color:#93c5fd;font-size:14px;text-decoration:none" active-class="navbar-nav-active">Transferi</RouterLink>
       <RouterLink to="/client/exchange" style="color:#93c5fd;font-size:14px;text-decoration:none" active-class="navbar-nav-active">Menjačnica</RouterLink>
       <RouterLink to="/client/recipients" style="color:#93c5fd;font-size:14px;text-decoration:none" active-class="navbar-nav-active">Primaoci</RouterLink>

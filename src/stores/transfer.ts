@@ -11,12 +11,27 @@ export const useTransferStore = defineStore('transfer', () => {
   const error = ref('')
 
   async function createTransfer(data: CreateTransferPayload): Promise<TransferItem> {
-    const res = await transferApi.create(data)
-    return res.data.transfer
+    loading.value = true
+    error.value = ''
+    try {
+      const res = await transferApi.create(data)
+      return res.data.transfer
+    } catch (e: any) {
+      error.value = extractApiMessage(e) || 'Failed to create transfer.'
+      throw e
+    } finally {
+      loading.value = false
+    }
   }
 
   async function verifyTransfer(transferId: string, verificationCode: string): Promise<void> {
-    await transferApi.verify(transferId, verificationCode)
+    error.value = ''
+    try {
+      await transferApi.verify(transferId, verificationCode)
+    } catch (e: any) {
+      error.value = extractApiMessage(e) || 'Failed to verify transfer.'
+      throw e
+    }
   }
 
   async function fetchByClient(clientId: string, filter: TransferFilter = {}) {
@@ -53,3 +68,10 @@ export const useTransferStore = defineStore('transfer', () => {
 
   return { transfers, total, page, pageSize, loading, error, createTransfer, verifyTransfer, fetchByClient, fetchByAccount, clearError }
 })
+
+function extractApiMessage(error: any): string {
+  const data = error?.response?.data
+  if (typeof data === 'string') return data
+  if (typeof data?.message === 'string') return data.message
+  return ''
+}

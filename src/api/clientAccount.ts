@@ -18,6 +18,7 @@ export interface ClientAccountItem {
   currencyKod: string
   tip: string
   vrsta: string
+  podvrsta?: string
   stanje: number
   raspolozivoStanje: number
   dnevniLimit: number

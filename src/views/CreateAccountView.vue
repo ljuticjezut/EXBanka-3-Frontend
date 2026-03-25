@@ -2,9 +2,11 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAccountStore } from '../stores/account'
-import { CURRENCIES } from '../api/account'
+import { accountApi, type CurrencyOption } from '../api/account'
+import { employeeCardApi } from '../api/card'
 import ClientSelectDialog from '../components/ClientSelectDialog.vue'
 import api from '../api/client'
+import { clientManagementApi } from '../api/clientManagement'
 
 const router = useRouter()
 const store = useAccountStore()
@@ -12,19 +14,25 @@ const store = useAccountStore()
 const showClientDialog = ref(false)
 const selectedClientId = ref<string | null>(null)
 const selectedClientLabel = ref('')
+const currencies = ref<CurrencyOption[]>([])
 
-// Sifre delatnosti from backend
 const sifreDelatnosti = ref<{ id: number; sifra: string; naziv: string }[]>([])
 
 async function loadSifreDelatnosti() {
   try {
-    const res = await api.get('/sifre-delatnosti')
-    sifreDelatnosti.value = res.data.sifre ?? []
-  } catch { /* ignore */ }
+    const [sifreRes, currenciesRes] = await Promise.all([
+      api.get('/sifre-delatnosti'),
+      accountApi.listCurrencies(),
+    ])
+    sifreDelatnosti.value = sifreRes.data.sifre ?? []
+    currencies.value = (currenciesRes.data.currencies ?? []).filter(c => c.aktivan !== false)
+  } catch {
+    // ignore initial load failures; page will surface create-time errors
+  }
 }
 
 const form = ref({
-  currencyId: 1,
+  currencyId: 0,
   tip: 'tekuci',
   vrsta: 'licni',
   podvrsta: 'standardni',
@@ -32,7 +40,12 @@ const form = ref({
   pocetnoStanje: '',
 })
 
-// Firma form (samo za poslovni)
+const cardForm = ref({
+  issue: false,
+  vrstaKartice: 'visa',
+  nazivKartice: '',
+})
+
 const firmaForm = ref({
   naziv: '',
   maticniBroj: '',
@@ -44,7 +57,6 @@ const firmaForm = ref({
 const firmaError = ref('')
 const firmaCreating = ref(false)
 
-// Podvrste za tekući račun
 const licnePodvrste = [
   { value: 'standardni', label: 'Standardni' },
   { value: 'stedni', label: 'Štedni' },
@@ -67,26 +79,51 @@ const currentPodvrste = computed(() => {
 
 const availableCurrencies = computed(() => {
   if (form.value.tip === 'devizni') {
-    return CURRENCIES.filter(c => c.kod !== 'RSD')
+    return currencies.value.filter(c => c.kod !== 'RSD')
   }
-  return CURRENCIES.filter(c => c.kod === 'RSD')
+  return currencies.value.filter(c => c.kod === 'RSD')
 })
 
-watch(() => form.value.tip, (newTip) => {
-  if (newTip === 'tekuci') {
-    form.value.currencyId = 1
-  } else {
-    form.value.currencyId = 2
+function defaultPodvrstaForSelection() {
+  return form.value.vrsta === 'poslovni' ? 'doo' : 'standardni'
+}
+
+function syncPodvrstaForSelection() {
+  if (form.value.tip !== 'tekuci') {
+    form.value.podvrsta = ''
+    return
   }
-  form.value.podvrsta = 'standardni'
+  const allowedValues = currentPodvrste.value.map(p => p.value)
+  if (!allowedValues.includes(form.value.podvrsta)) {
+    form.value.podvrsta = defaultPodvrstaForSelection()
+  }
+}
+
+function syncCurrencyForSelection() {
+  if (form.value.tip === 'tekuci') {
+    form.value.currencyId = currencies.value.find(c => c.kod === 'RSD')?.id ?? 0
+    return
+  }
+  const currentCurrencyAllowed = availableCurrencies.value.some(c => c.id === form.value.currencyId)
+  if (!currentCurrencyAllowed) {
+    form.value.currencyId = availableCurrencies.value[0]?.id ?? 0
+  }
+}
+
+watch(() => form.value.tip, (newTip) => {
+  syncCurrencyForSelection()
+  syncPodvrstaForSelection()
+  if (newTip !== 'tekuci') {
+    cardForm.value.issue = false
+  }
 })
 
 watch(() => form.value.vrsta, () => {
-  if (form.value.vrsta === 'licni') {
-    form.value.podvrsta = 'standardni'
-  } else {
-    form.value.podvrsta = 'doo'
-  }
+  syncPodvrstaForSelection()
+})
+
+watch(currencies, () => {
+  syncCurrencyForSelection()
 })
 
 function onClientSelected(clientId: string, label?: string) {
@@ -100,10 +137,13 @@ async function handleSubmit() {
     store.error = 'Izaberite klijenta.'
     return
   }
+  if (!form.value.currencyId) {
+    store.error = 'Valuta nije dostupna. Osvežite stranicu i pokušajte ponovo.'
+    return
+  }
 
-  let firmaId: number | undefined = undefined
+  let firmaId: number | undefined
 
-  // Ako je poslovni, kreiramo firmu prvo
   if (form.value.vrsta === 'poslovni') {
     if (!firmaForm.value.naziv || !firmaForm.value.maticniBroj || !firmaForm.value.pib) {
       store.error = 'Naziv, matični broj i PIB firme su obavezni.'
@@ -130,26 +170,60 @@ async function handleSubmit() {
   }
 
   const autoNaziv = form.value.naziv || (form.value.tip === 'tekuci'
-    ? currentPodvrste.value.find(p => p.value === form.value.podvrsta)?.label + ' račun'
+    ? `${currentPodvrste.value.find(p => p.value === form.value.podvrsta)?.label ?? 'Tekući'} račun`
     : 'Devizni račun')
 
   try {
-    await store.createAccount({
-      clientId:   Number(selectedClientId.value),
+    const account = await store.createAccount({
+      clientId: Number(selectedClientId.value),
       currencyId: form.value.currencyId,
-      tip:        form.value.tip,
-      vrsta:      form.value.vrsta,
-      firmaId:    firmaId,
-      naziv:      autoNaziv || undefined,
+      tip: form.value.tip,
+      vrsta: form.value.vrsta,
+      podvrsta: form.value.tip === 'tekuci' ? form.value.podvrsta : undefined,
+      firmaId,
+      naziv: autoNaziv || undefined,
       pocetnoStanje: form.value.pocetnoStanje ? Number(form.value.pocetnoStanje) : 0,
     })
+
+    if (cardForm.value.issue && form.value.tip === 'tekuci') {
+      let clientName = selectedClientLabel.value
+      let clientEmail = ''
+      try {
+        const clientRes = await clientManagementApi.get(String(selectedClientId.value))
+        const client = clientRes.data.client
+        if (client) {
+          clientName = `${client.ime} ${client.prezime}`
+          clientEmail = client.email
+        }
+      } catch {
+        // Card notification is optional; proceed with the issuance attempt.
+      }
+
+      try {
+        await employeeCardApi.createCard({
+          accountId: Number(account.id),
+          clientId: Number(selectedClientId.value),
+          vrstaKartice: cardForm.value.vrstaKartice,
+          nazivKartice: cardForm.value.nazivKartice || autoNaziv || 'Debitna kartica',
+          clientEmail,
+          clientName,
+        })
+      } catch (e: any) {
+        store.error = e.response?.data?.error || 'Račun je kreiran, ali izdavanje kartice nije uspelo.'
+        return
+      }
+    }
+
     router.push('/accounts')
   } catch {
-    // error is set by store
+    // store.error is already populated by the store or the card issuance fallback above
   }
 }
 
-onMounted(() => loadSifreDelatnosti())
+onMounted(async () => {
+  await loadSifreDelatnosti()
+  syncCurrencyForSelection()
+})
 </script>
 
 <template>
@@ -159,7 +233,6 @@ onMounted(() => loadSifreDelatnosti())
     </div>
 
     <div class="card" style="max-width:640px">
-      <!-- Tip računa -->
       <div class="form-group" style="margin-bottom:20px">
         <label>Tip računa *</label>
         <div style="display:flex;gap:24px;margin-top:6px">
@@ -174,7 +247,6 @@ onMounted(() => loadSifreDelatnosti())
         </div>
       </div>
 
-      <!-- Vrsta -->
       <div class="form-group" style="margin-bottom:20px">
         <label>Vrsta *</label>
         <div style="display:flex;gap:24px;margin-top:6px">
@@ -189,7 +261,6 @@ onMounted(() => loadSifreDelatnosti())
         </div>
       </div>
 
-      <!-- Podvrsta (samo za tekući) -->
       <div v-if="form.tip === 'tekuci' && currentPodvrste.length > 0" class="form-group" style="margin-bottom:20px">
         <label>Podvrsta računa *</label>
         <select v-model="form.podvrsta">
@@ -199,7 +270,6 @@ onMounted(() => loadSifreDelatnosti())
         </select>
       </div>
 
-      <!-- Izbor klijenta (vlasnik) -->
       <div class="form-group" style="margin-bottom:20px">
         <label>Vlasnik (klijent) *</label>
         <div style="display:flex;align-items:center;gap:12px">
@@ -215,7 +285,6 @@ onMounted(() => loadSifreDelatnosti())
         </div>
       </div>
 
-      <!-- FIRMA (samo za poslovni) -->
       <div v-if="form.vrsta === 'poslovni'" style="border:1px solid #e2e8f0;border-radius:10px;padding:20px;margin-bottom:20px;background:#f8fafc">
         <h3 style="font-size:15px;font-weight:600;margin-bottom:16px;color:#1e293b">Podaci o firmi</h3>
 
@@ -255,7 +324,6 @@ onMounted(() => loadSifreDelatnosti())
         </p>
       </div>
 
-      <!-- Valuta -->
       <div v-if="form.tip === 'devizni'" class="form-group" style="margin-bottom:20px">
         <label>Valuta *</label>
         <select v-model="form.currencyId">
@@ -269,28 +337,53 @@ onMounted(() => loadSifreDelatnosti())
         <input value="RSD — Srpski dinar" disabled style="background:#f9fafb;color:#6b7280" />
       </div>
 
-      <!-- Početno stanje -->
       <div class="form-group" style="margin-bottom:20px">
         <label>Početno stanje (opciono)</label>
         <input v-model="form.pocetnoStanje" type="number" min="0" step="0.01" placeholder="0.00" />
         <span style="font-size:12px;color:#64748b;margin-top:4px">Iznos koji klijent uplaćuje prilikom otvaranja računa</span>
       </div>
 
-      <!-- Naziv računa -->
       <div class="form-group" style="margin-bottom:20px">
         <label>Naziv računa (opciono)</label>
         <input v-model="form.naziv" placeholder="npr. Moj štedni račun" />
       </div>
 
-      <!-- Kartica — Sprint 3 -->
-      <div class="form-group" style="margin-bottom:24px;flex-direction:row;align-items:center;gap:10px">
-        <input type="checkbox" id="card-checkbox" disabled style="width:16px;height:16px" />
-        <label for="card-checkbox" style="margin:0;color:#9ca3af">
-          Izdaj debitnu karticu (dostupno u Sprint 3)
+      <div class="form-group" style="margin-bottom:12px;flex-direction:row;align-items:center;gap:10px">
+        <input
+          id="card-checkbox"
+          v-model="cardForm.issue"
+          type="checkbox"
+          :disabled="form.tip !== 'tekuci'"
+          style="width:16px;height:16px"
+        />
+        <label for="card-checkbox" :style="{ margin: 0, color: form.tip === 'tekuci' ? '#111827' : '#9ca3af' }">
+          Izdaj debitnu karticu uz otvaranje računa
         </label>
       </div>
 
+      <div v-if="cardForm.issue && form.tip === 'tekuci'" style="border:1px solid #e2e8f0;border-radius:10px;padding:16px;margin-bottom:24px;background:#f8fafc">
+        <div class="form-row" style="margin-bottom:14px">
+          <div class="form-group">
+            <label>Tip kartice *</label>
+            <select v-model="cardForm.vrstaKartice">
+              <option value="visa">Visa</option>
+              <option value="mastercard">MasterCard</option>
+              <option value="dinacard">DinaCard</option>
+              <option value="amex">American Express</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Naziv kartice</label>
+            <input v-model="cardForm.nazivKartice" placeholder="npr. Lična Visa kartica" />
+          </div>
+        </div>
+        <p style="font-size:12px;color:#64748b;margin:0">
+          Kartica će biti izdata na ime izabranog vlasnika računa nakon uspešnog otvaranja računa.
+        </p>
+      </div>
+
       <p v-if="store.error" class="global-error" style="margin-bottom:16px">{{ store.error }}</p>
+      <p v-if="firmaError" class="global-error" style="margin-bottom:16px">{{ firmaError }}</p>
 
       <div style="display:flex;gap:12px">
         <button class="btn-secondary" type="button" @click="router.push('/accounts')">Otkaži</button>

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { exchangeApi, type ExchangeRate } from '../../api/exchange'
-import { CURRENCIES } from '../../api/account'
 
 const rates = ref<ExchangeRate[]>([])
 const loadingRates = ref(false)
@@ -18,6 +17,15 @@ const calcError = ref('')
 const rsdRates = computed(() =>
   rates.value.filter(r => r.to === 'RSD' && r.from !== 'RSD')
 )
+
+const currencyOptions = computed(() => {
+  const codes = new Set<string>(['RSD'])
+  for (const rate of rates.value) {
+    if (rate.from) codes.add(rate.from)
+    if (rate.to) codes.add(rate.to)
+  }
+  return Array.from(codes).sort().map(kod => ({ kod }))
+})
 
 async function loadRates() {
   loadingRates.value = true
@@ -77,7 +85,7 @@ onMounted(loadRates)
           <div class="ex-field">
             <label>Iz valute</label>
             <select v-model="calcFrom">
-              <option v-for="c in CURRENCIES" :key="c.id" :value="c.kod">{{ c.kod }}</option>
+              <option v-for="c in currencyOptions" :key="c.kod" :value="c.kod">{{ c.kod }}</option>
             </select>
           </div>
 
@@ -86,7 +94,7 @@ onMounted(loadRates)
           <div class="ex-field">
             <label>U valutu</label>
             <select v-model="calcTo">
-              <option v-for="c in CURRENCIES" :key="c.id" :value="c.kod">{{ c.kod }}</option>
+              <option v-for="c in currencyOptions" :key="c.kod" :value="c.kod">{{ c.kod }}</option>
             </select>
           </div>
         </div>
