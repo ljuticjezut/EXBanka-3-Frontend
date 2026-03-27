@@ -392,7 +392,9 @@ onMounted(async () => {
       <!-- VERIFY -->
       <div v-else-if="step === 'verify'">
         <div class="pay-section-label">Verifikacija</div>
-        <p class="pay-subtitle">Unesite 6-cifreni verifikacioni kod za potvrdu plaćanja.</p>
+        <p class="pay-subtitle">
+          Otvorite mobilnu aplikaciju → kartica <strong>Verifikacija</strong> → odaberite ovu transakciju → kliknite <strong>Prikaži kod</strong>. Unesite prikazani kod ispod.
+        </p>
         <div class="pay-countdown" :class="{ 'pay-countdown-expired': codeExpired }">
           <span v-if="!codeExpired">Kod ističe za: <strong>{{ verifyCountdown }}</strong></span>
           <span v-else>Kod je istekao.</span>

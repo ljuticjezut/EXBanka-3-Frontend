@@ -15,6 +15,9 @@ export const clientAuthApi = {
   login(email: string, password: string) {
     return clientApiClient.post('/auth/client/login', { email, password })
   },
+  activateAccount(token: string, password: string, passwordConfirm: string) {
+    return clientApiClient.post('/auth/client/activate', { token, password, passwordConfirm })
+  },
 }
 
 export default clientApiClient

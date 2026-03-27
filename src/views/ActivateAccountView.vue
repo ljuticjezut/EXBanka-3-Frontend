@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { authApi } from '../api/auth'
+import { clientAuthApi } from '../api/clientAuth'
 
 const route = useRoute()
 const router = useRouter()
@@ -12,6 +13,10 @@ const error = ref('')
 const success = ref('')
 const loading = ref(false)
 
+// Client setup tokens are JWTs (3 dot-separated parts); employee tokens are hex strings.
+const token = route.params.token as string
+const isClientToken = token.split('.').length === 3
+
 async function handleActivate() {
   error.value = ''
   if (password.value !== passwordConfirm.value) {
@@ -20,9 +25,15 @@ async function handleActivate() {
   }
   loading.value = true
   try {
-    await authApi.activateAccount(route.params.token as string, password.value, passwordConfirm.value)
-    success.value = 'Account activated! You can now log in.'
-    setTimeout(() => router.push('/login'), 2000)
+    if (isClientToken) {
+      await clientAuthApi.activateAccount(token, password.value, passwordConfirm.value)
+      success.value = 'Account activated! You can now log in.'
+      setTimeout(() => router.push('/client/login'), 2000)
+    } else {
+      await authApi.activateAccount(token, password.value, passwordConfirm.value)
+      success.value = 'Account activated! You can now log in.'
+      setTimeout(() => router.push('/login'), 2000)
+    }
   } catch (e: any) {
     error.value = e.response?.data?.message || 'Activation failed. The link may have expired.'
   } finally {
@@ -35,7 +46,7 @@ async function handleActivate() {
   <div class="auth-page">
     <div class="auth-card">
       <h1>Activate Account</h1>
-      <p>Set a password to activate your bank employee account.</p>
+      <p>Set a password to activate your account.</p>
 
       <div class="password-policy">
         <strong>Password requirements:</strong><br>
